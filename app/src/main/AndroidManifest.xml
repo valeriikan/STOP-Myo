@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.aware.app.stop_myo">
+
+    <permission
+        android:name="com.aware.READ_CONTEXT_DATA"
+        android:description="@string/read_permission"
+        android:icon="@drawable/ic_launcher_settings"
+        android:label="Read AWARE&apos;s Context data"
+        android:protectionLevel="signature" />
+    <permission
+        android:name="com.aware.WRITE_CONTEXT_DATA"
+        android:description="@string/write_permission"
+        android:icon="@drawable/ic_launcher_settings"
+        android:label="Write to AWARE&apos;s Context data"
+        android:protectionLevel="signature" />
 
     <application
         android:allowBackup="true"
@@ -8,7 +22,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        tools:ignore="GoogleAppIndexingWarning">
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -16,6 +31,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name=".model.Provider"
+            android:authorities="${applicationId}.model.provider.stop_myo"
+            android:exported="true"
+            android:label="@string/provider_label"
+            android:readPermission="com.aware.READ_CONTEXT_DATA"
+            android:syncable="true"
+            android:writePermission="com.aware.WRITE_CONTEXT_DATA" />
+
+        <service
+            android:name=".model.Stop_Myo_Sync"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/sync_stop_myo" />
+        </service>
     </application>
 
 </manifest>
