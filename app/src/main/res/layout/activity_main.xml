@@ -7,7 +7,7 @@
     android:layout_marginStart="8dp"
     android:layout_marginEnd="8dp"
     android:layout_marginBottom="8dp"
-    tools:context=".MainActivity">
+    tools:context=".presenter.MainActivity">
 
     <LinearLayout
         android:id="@+id/layout_connect"

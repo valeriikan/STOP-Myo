@@ -1,4 +1,4 @@
-package com.aware.app.stop_myo;
+package com.aware.app.stop_myo.presenter;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
+import com.aware.app.stop_myo.R;
 import com.aware.app.stop_myo.model.MyoHandler;
 
 public class MainActivity extends AppCompatActivity {
