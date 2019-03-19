@@ -9,19 +9,29 @@
     android:layout_marginBottom="8dp"
     tools:context=".presenter.MainActivity">
 
+    <TextView
+        android:id="@+id/connection_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:textAppearance="@style/Base.TextAppearance.AppCompat.Large"
+        android:text="CONNECTION STATE"/>
+
     <LinearLayout
-        android:id="@+id/layout_connect"
+        android:id="@+id/onDisconnected_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_centerVertical="true">
+        android:layout_centerVertical="true"
+        android:visibility="invisible">
 
         <Button
             android:id="@+id/btn_autoconnect"
             android:layout_width="match_parent"
             android:layout_height="80dp"
             android:text="Autoconnect to nearest Myo"/>
-        
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -33,7 +43,8 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
             <EditText
                 android:id="@+id/et_mac"
@@ -41,7 +52,8 @@
                 android:layout_height="80dp"
                 android:layout_weight="1"
                 android:textAlignment="center"
-                android:hint="connect via mac address"/>
+                android:hint="connect via mac address"
+                android:text="C4:EF:50:4D:29:BD"/>
 
             <Button
                 android:id="@+id/btn_connect_mac"
@@ -51,8 +63,109 @@
 
         </LinearLayout>
 
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/onConnected_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_centerVertical="true"
+        android:visibility="invisible">
+
+        <TextView
+            android:id="@+id/device_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Large"
+            android:text="Device name: "/>
+
+        <TextView
+            android:id="@+id/mac_address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Large"
+            android:text="MAC: "/>
+
+        <TextView
+            android:id="@+id/battery_level"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Large"
+            android:text="Battery: "/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="30dp">
+
+            <Button
+                android:id="@+id/btn_start_label"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="Start label"/>
+
+            <Button
+                android:id="@+id/btn_end_label"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="End label"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/et_custom_label"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:hint="custom label"/>
+
+            <Button
+                android:id="@+id/btn_custom_label"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="Add"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="30dp"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/btn_disconnect"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:text="Disconnect"
+                android:textColor="#f44336"/>
+
+        </LinearLayout>
 
     </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/connecting_progress"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_centerInParent="true"
+        android:visibility="invisible"/>
 
 
 

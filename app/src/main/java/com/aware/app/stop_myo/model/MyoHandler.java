@@ -8,9 +8,11 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.v4.app.NotificationCompat;
+import android.view.View;
 
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
+import com.aware.app.stop_myo.views.MainView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,11 +38,14 @@ public class MyoHandler implements
         Myo.ReadDeviceNameCallback,
         MyoConnector.ScannerCallback {
 
-    public MyoHandler(Context context) {
-        this.context = context;
-    }
-
     private Context context;
+    private MainView mainView;
+
+    public MyoHandler(Context context, View view) {
+        this.context = context;
+        mainView = new MainView(context, view);
+        mainView.onDisconnected();
+    }
 
     // Myo variables
     private MyoConnector connector = null;
@@ -93,9 +98,8 @@ public class MyoHandler implements
     private static final String SAMPLE_KEY_EXERCISE_END = "end_timestamp";
 
 
-    // Connecting to Myo
+    // Connecting to Myo via autoscanning
     public void connectMyo() {
-
         if (bluetoothAdapter == null) bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
             // Request to activate bluetooth
@@ -104,12 +108,8 @@ public class MyoHandler implements
             context.startActivity(enableBT);
 
         } else {
-            // TODO: UI update on SCANNING MYOS
-//            // Update notification status
-//            nBuilder.setContentText(getString(R.string.notification_state_scanning_myos))
-//                    .setProgress(0,0,true)
-//                    .mActions.clear();
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+            // Update UI: Scanning
+            mainView.onScanning();
 
             // Try to connect with autoscanning
             // Callback either connects to found myo or offers to try again
@@ -120,7 +120,6 @@ public class MyoHandler implements
 
     // Connecting to Myo via Mac
     public void connectMacMyo(String mac) {
-
         if (bluetoothAdapter == null) bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
             // Request to activate bluetooth
@@ -129,12 +128,8 @@ public class MyoHandler implements
             context.startActivity(enableBT);
 
         } else {
-            // TODO: UI update on CONNECTING WITH MAC
-//            // Update notification status
-//            nBuilder.setContentText(getString(R.string.notification_state_connecting))
-//                    .setProgress(0,0,true)
-//                    .mActions.clear();
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+            // Update UI: Connecting
+            mainView.onConnecting();
 
             try {
                 // Initialize bluetooth device with retrieved MAC address
@@ -145,18 +140,13 @@ public class MyoHandler implements
                 myo.addConnectionListener(MyoHandler.this);
                 myo.connect();
 
-                // Remove values and set notification to default state if not connected after 100 seconds
+                // Perform actions if not connected after 100 seconds
                 final Handler handler = new Handler();
                 final Runnable r = new Runnable() {
                     public void run() {
                         if (myo!=null && !connected) {
-                            // TODO: UI update on CONNECTION TIMEOUT
-//                            //Update notification status
-//                            nBuilder.setContentText(getString(R.string.notification_state_connection_error))
-//                                    .setProgress(0,0,false)
-//                                    .mActions.clear();
-//                            nBuilder.addAction(0, getString(R.string.notification_action_connect), connectIntent).addAction(connectMac);
-//                            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+                            // UI Update: Connection timeout
+                            mainView.onConnectionTimeout();
 
                             //Removing existing values
                             removeValues();
@@ -166,16 +156,8 @@ public class MyoHandler implements
                 handler.postDelayed(r, CONNECTION_TIMEOUT);
 
             } catch (IllegalArgumentException e) {
-
-                // TODO: UI update on WRONG MAC FORMAT
-//                //Reset state to disconnected state because of wrong MAC address format
-//                nBuilder.setContentText(getString(R.string.notification_state_wrong_mac))
-//                        .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_wrong_mac)))
-//                        .setProgress(0,0,false)
-//                        .mActions.clear();
-//                nBuilder.addAction(0, getString(R.string.notification_action_connect),connectIntent).addAction(connectMac);
-//                startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//                nBuilder.setStyle(null);
+                // Update UI: Wrong MAC address format
+                mainView.onMacWrong();
 
                 //Removing existing values
                 removeValues();
@@ -192,21 +174,14 @@ public class MyoHandler implements
             myo.writeMode(MyoCmds.EmgMode.NONE, MyoCmds.ImuMode.NONE, MyoCmds.ClassifierMode.DISABLED, new Myo.MyoCommandCallback() {
                 @Override
                 public void onCommandDone(Myo myo, MyoMsg msg) {
-                    // Disconnecting from Myo and aplying UI changes
+                    // Disconnecting from Myo
                     myo.disconnect();
 
                     //Removing existing values
                     removeValues();
 
-                    // TODO: UI update on DISCONNECTED
-//                    // Update notification status
-//                    nBuilder.setContentText(getString(R.string.notification_state_disconnected))
-//                            .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_disconnected)))
-//                            .setProgress(0,0,false)
-//                            .mActions.clear();
-//                    nBuilder.addAction(0, getString(R.string.notification_action_connect),connectIntent).addAction(connectMac);
-//                    startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//                    nBuilder.setStyle(null);
+                    // Update UI: Disconnected
+                    mainView.onDisconnected();
 
                     // Insert existing data on disconnect if smth not inserted exists
                     if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || exerciseArray.length()!=0) {
@@ -214,6 +189,7 @@ public class MyoHandler implements
                         Handler handler = new Handler(Looper.getMainLooper());
                         Runnable r = new Runnable() {
                             public void run() {
+                                //TODO
 //                                insertData();
                             }
                         };
@@ -312,6 +288,8 @@ public class MyoHandler implements
             myo.writeMode(MyoCmds.EmgMode.FILTERED, MyoCmds.ImuMode.RAW, MyoCmds.ClassifierMode.DISABLED, new Myo.MyoCommandCallback() {
                 @Override
                 public void onCommandDone(Myo mMyo, MyoMsg msg) {
+                    connected = true;
+
                     // Setting up Imu and EMG sensors
                     imuProcessor = new ImuProcessor();
                     emgProcessor = new EmgProcessor();
@@ -320,22 +298,17 @@ public class MyoHandler implements
                     myo.addProcessor(imuProcessor);
                     myo.addProcessor(emgProcessor);
 
-                    // TODO: UI update on CONNECTED
-//                    // Update notification status
-//                    nBuilder.setContentText(getString(R.string.notification_state_connected))
-//                            .setProgress(0,0,false)
-//                            .mActions.clear();
-//                    nBuilder.addAction(0, getString(R.string.notification_action_disconnect), disconnectIntent);
-//                    startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//                    connected = true;
+                    // Update UI: Connected
+                    mainView.onConnected();
 
                     // Read device name on connect and record it to JSON object
                     myo.readDeviceName(MyoHandler.this);
-                    try {
-                        myoDataObject.put(SAMPLE_KEY_MAC_ADDRESS, myo.getDeviceAddress());;
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
+                    // TODO
+//                    try {
+//                        myoDataObject.put(SAMPLE_KEY_MAC_ADDRESS, myo.getDeviceAddress());;
+//                    } catch (JSONException e) {
+//                        e.printStackTrace();
+//                    }
                 }
             });
         }
@@ -344,19 +317,13 @@ public class MyoHandler implements
             // Removing existing values
             removeValues();
 
-            // TODO: UI update on DISCONNECTED
-//            // Update notification status
-//            nBuilder.setContentText(getString(R.string.notification_state_disconnected))
-//                    .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_disconnected)))
-//                    .setProgress(0,0,false)
-//                    .mActions.clear();
-//            nBuilder.addAction(0, getString(R.string.notification_action_connect), connectIntent).addAction(connectMac);
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//            nBuilder.setStyle(null);
+            // Update UI: Disconnected
+            mainView.onDisconnected();
 
             // Insert existing data on disconnect if smth not inserted exists
             if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || exerciseArray.length()!=0) {
-//                insertData();
+//               TODO
+//               insertData();
             }
         }
 
@@ -365,40 +332,44 @@ public class MyoHandler implements
     //Myo battery level listener
     @Override
     public void onBatteryLevelRead(Myo myo, MyoMsg msg, int batteryLevel) {
-        try {
-            // TODO: UI update on BATTERY SAMPLE
-//            // Update notification on every battery sampling
-//            nBuilder.setContentText(getString(R.string.notification_state_connected_charge_1) + batteryLevel + getString(R.string.notification_state_connected_charge_2))
-//                    .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_connected_charge_1) + batteryLevel + getString(R.string.notification_state_connected_charge_2)))
-//                    .setProgress(0,0,false)
-//                    .mActions.clear();
-//            nBuilder.addAction(0, getString(R.string.notification_action_disconnect), disconnectIntent);
-//            nBuilder.addAction(0, "Start", startExerciseIntent);
-//            nBuilder.addAction(0, "End", endExerciseIntent);
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//            nBuilder.setStyle(null);
-
-            // Record battery level to JSON object
-            JSONObject batteryObj = new JSONObject();
-            batteryObj.put(SAMPLE_KEY_TIMESTAMP, mLastBatteryUpdate);
-            batteryObj.put(SAMPLE_KEY_BATTERY_LEVEL, batteryLevel);
-            batteryArray.put(batteryObj);
-            batteryObj = null;
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        mainView.onBatteryRead(batteryLevel);
+//        try {
+//            // TODO: UI update on BATTERY SAMPLE
+////            // Update notification on every battery sampling
+////            nBuilder.setContentText(getString(R.string.notification_state_connected_charge_1) + batteryLevel + getString(R.string.notification_state_connected_charge_2))
+////                    .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_connected_charge_1) + batteryLevel + getString(R.string.notification_state_connected_charge_2)))
+////                    .setProgress(0,0,false)
+////                    .mActions.clear();
+////            nBuilder.addAction(0, getString(R.string.notification_action_disconnect), disconnectIntent);
+////            nBuilder.addAction(0, "Start", startExerciseIntent);
+////            nBuilder.addAction(0, "End", endExerciseIntent);
+////            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+////            nBuilder.setStyle(null);
+//
+//            // Record battery level to JSON object
+////            JSONObject batteryObj = new JSONObject();
+////            batteryObj.put(SAMPLE_KEY_TIMESTAMP, mLastBatteryUpdate);
+////            batteryObj.put(SAMPLE_KEY_BATTERY_LEVEL, batteryLevel);
+////            batteryArray.put(batteryObj);
+////            batteryObj = null;
+//
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
     }
 
     //Myo device name reader
     @Override
     public void onDeviceNameRead(Myo myo, MyoMsg msg, String deviceName) {
-        try {
-            // Insert device name to JSON when read is executed
-            myoDataObject.put(SAMPLE_KEY_LABEL, deviceName);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        mainView.onPropertiesRead(deviceName, myo.getDeviceAddress());
+
+        //TODO
+//        try {
+//            // Insert device name to JSON when read is executed
+//            myoDataObject.put(SAMPLE_KEY_LABEL, deviceName);
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
     }
 
 
@@ -408,26 +379,27 @@ public class MyoHandler implements
         if (System.currentTimeMillis() - mLastEmgUpdate > SAMPLING_EMG_FREQUENCY) {
             mLastEmgUpdate = System.currentTimeMillis();
 
-            try {
-                JSONObject emgObj = new JSONObject();
-                emgObj.put(SAMPLE_KEY_TIMESTAMP, emgData.getTimestamp());
-                emgObj.put(SAMPLE_KEY_EMG_0, emgData.getData()[0]);
-                emgObj.put(SAMPLE_KEY_EMG_1, emgData.getData()[1]);
-                emgObj.put(SAMPLE_KEY_EMG_2, emgData.getData()[2]);
-                emgObj.put(SAMPLE_KEY_EMG_3, emgData.getData()[3]);
-                emgObj.put(SAMPLE_KEY_EMG_4, emgData.getData()[4]);
-                emgObj.put(SAMPLE_KEY_EMG_5, emgData.getData()[5]);
-                emgObj.put(SAMPLE_KEY_EMG_6, emgData.getData()[6]);
-                emgObj.put(SAMPLE_KEY_EMG_7, emgData.getData()[7]);
-
-                emgArray.put(emgObj);
-                emgObj = null;
-
-//                if (emgArray.length() == SAMPLING_BUFFER_SIZE) insertData();
-
-            } catch (JSONException e) {
-                e.printStackTrace();;
-            }
+            //TODO
+//            try {
+//                JSONObject emgObj = new JSONObject();
+//                emgObj.put(SAMPLE_KEY_TIMESTAMP, emgData.getTimestamp());
+//                emgObj.put(SAMPLE_KEY_EMG_0, emgData.getData()[0]);
+//                emgObj.put(SAMPLE_KEY_EMG_1, emgData.getData()[1]);
+//                emgObj.put(SAMPLE_KEY_EMG_2, emgData.getData()[2]);
+//                emgObj.put(SAMPLE_KEY_EMG_3, emgData.getData()[3]);
+//                emgObj.put(SAMPLE_KEY_EMG_4, emgData.getData()[4]);
+//                emgObj.put(SAMPLE_KEY_EMG_5, emgData.getData()[5]);
+//                emgObj.put(SAMPLE_KEY_EMG_6, emgData.getData()[6]);
+//                emgObj.put(SAMPLE_KEY_EMG_7, emgData.getData()[7]);
+//
+//                emgArray.put(emgObj);
+//                emgObj = null;
+//
+////                if (emgArray.length() == SAMPLING_BUFFER_SIZE) insertData();
+//
+//            } catch (JSONException e) {
+//                e.printStackTrace();;
+//            }
         }
     }
 
@@ -440,34 +412,35 @@ public class MyoHandler implements
         if (System.currentTimeMillis() - mLastImuUpdate > SAMPLING_IMU_FREQUENCY) {
             mLastImuUpdate = System.currentTimeMillis();
 
-            try {
-                JSONObject accObj = new JSONObject();
-                accObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
-                        .put(SAMPLE_KEY_IMU_X, imuData.getAccelerometerData()[0])
-                        .put(SAMPLE_KEY_IMU_Y, imuData.getAccelerometerData()[1])
-                        .put(SAMPLE_KEY_IMU_Z, imuData.getAccelerometerData()[2]);
-                accArray.put(accObj);
-                accObj = null;
-
-                JSONObject gyroObj = new JSONObject();
-                gyroObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
-                        .put(SAMPLE_KEY_IMU_X, imuData.getGyroData()[0])
-                        .put(SAMPLE_KEY_IMU_Y, imuData.getGyroData()[1])
-                        .put(SAMPLE_KEY_IMU_Z, imuData.getGyroData()[2]);
-                gyroArray.put(gyroObj);
-                gyroObj = null;
-
-                JSONObject orientObj = new JSONObject();
-                orientObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
-                        .put(SAMPLE_KEY_IMU_X, imuData.getOrientationData()[0])
-                        .put(SAMPLE_KEY_IMU_Y, imuData.getOrientationData()[1])
-                        .put(SAMPLE_KEY_IMU_Z, imuData.getOrientationData()[2]);
-                orientArray.put(orientObj);
-                orientObj = null;
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
+            //TODO
+//            try {
+//                JSONObject accObj = new JSONObject();
+//                accObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
+//                        .put(SAMPLE_KEY_IMU_X, imuData.getAccelerometerData()[0])
+//                        .put(SAMPLE_KEY_IMU_Y, imuData.getAccelerometerData()[1])
+//                        .put(SAMPLE_KEY_IMU_Z, imuData.getAccelerometerData()[2]);
+//                accArray.put(accObj);
+//                accObj = null;
+//
+//                JSONObject gyroObj = new JSONObject();
+//                gyroObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
+//                        .put(SAMPLE_KEY_IMU_X, imuData.getGyroData()[0])
+//                        .put(SAMPLE_KEY_IMU_Y, imuData.getGyroData()[1])
+//                        .put(SAMPLE_KEY_IMU_Z, imuData.getGyroData()[2]);
+//                gyroArray.put(gyroObj);
+//                gyroObj = null;
+//
+//                JSONObject orientObj = new JSONObject();
+//                orientObj.put(SAMPLE_KEY_TIMESTAMP, imuData.getTimeStamp())
+//                        .put(SAMPLE_KEY_IMU_X, imuData.getOrientationData()[0])
+//                        .put(SAMPLE_KEY_IMU_Y, imuData.getOrientationData()[1])
+//                        .put(SAMPLE_KEY_IMU_Z, imuData.getOrientationData()[2]);
+//                orientArray.put(orientObj);
+//                orientObj = null;
+//
+//            } catch (JSONException e) {
+//                e.printStackTrace();
+//            }
         }
 
         // Check for battery level once per minute
@@ -486,25 +459,14 @@ public class MyoHandler implements
             //Remove already existing values
             removeValues();
 
-            // TODO: UI update on NO MYOS FOUND ON SCAN
-//            // Update notification status
-//            nBuilder.setContentText(getString(R.string.notification_state_no_myos_found))
-//                    .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(R.string.notification_state_no_myos_found)))
-//                    .setProgress(0,0,false)
-//                    .mActions.clear();
-//            nBuilder.addAction(0, getString(R.string.notification_action_connect), connectIntent).addAction(connectMac);
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
-//            nBuilder.setStyle(null);
+            // Update UI: No Myos found on scanning
+            mainView.onEmptyAutoscan();
 
         } else {
-            // connect to found Myo
-            // TODO: UI update on CONNECTING
-//            // Update notification status
-//            nBuilder.setContentText(getString(R.string.notification_state_connecting))
-//                    .setProgress(0,0,true)
-//                    .mActions.clear();
-//            startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+            // Update UI: Connecting
+            mainView.onConnecting();
 
+            // Connect to found Myo
             myo = myos.get(0);
             myo.addConnectionListener(MyoHandler.this);
             myo.connect();
@@ -514,12 +476,8 @@ public class MyoHandler implements
             final Runnable r = new Runnable() {
                 public void run() {
                     if (myo!=null && !connected) {
-                        // TODO: UI update on CONNECTION TIMEOUT
-//                        nBuilder.setContentText(getString(R.string.notification_state_connection_error))
-//                                .setProgress(0,0,false)
-//                                .mActions.clear();
-//                        nBuilder.addAction(0, getString(R.string.notification_action_connect), connectIntent).addAction(connectMac);
-//                        startForeground(NOTIFICATION_ID, nBuilder.getNotification());
+                        // Update UI: Connection timetout
+                        mainView.onConnectionTimeout();
 
                         //Removing existing values
                         removeValues();
