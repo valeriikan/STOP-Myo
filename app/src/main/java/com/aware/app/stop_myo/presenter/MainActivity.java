@@ -20,10 +20,14 @@ public class MainActivity extends AppCompatActivity {
 
         final MyoHandler myoHandler = new MyoHandler(this, view);
 
+        final EditText mac = findViewById(R.id.et_mac);
+        final EditText et_label = findViewById(R.id.et_custom_label);
         Button autoconnect = findViewById(R.id.btn_autoconnect);
         Button connect_mac = findViewById(R.id.btn_connect_mac);
         Button disconnect = findViewById(R.id.btn_disconnect);
-        final EditText mac = findViewById(R.id.et_mac);
+        Button start_label = findViewById(R.id.btn_start_label);
+        Button end_label = findViewById(R.id.btn_end_label);
+        Button custom_label = findViewById(R.id.btn_custom_label);
 
         autoconnect.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -43,6 +47,27 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 myoHandler.disconnectMyo();
+            }
+        });
+
+        start_label.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(MyoHandler.SAMPLE_KEY_LABEL_START);
+            }
+        });
+
+        end_label.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(MyoHandler.SAMPLE_KEY_LABEL_END);
+            }
+        });
+
+        custom_label.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(et_label.getText().toString());
             }
         });
 

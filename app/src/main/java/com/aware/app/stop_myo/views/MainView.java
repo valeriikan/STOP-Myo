@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.aware.app.stop_myo.R;
 import com.aware.app.stop_myo.presenter.MainActivity;
@@ -13,7 +14,6 @@ import com.aware.app.stop_myo.presenter.MainActivity;
 public class MainView extends View {
 
     View view;
-    Context context;
     MainActivity activity;
 
     TextView connection_state;
@@ -22,11 +22,10 @@ public class MainView extends View {
     ProgressBar connecting_progress;
     TextView device_name, mac_address, battery_level;
 
-    public MainView(Context ctx, View v) {
-        super(ctx);
+    public MainView(Context context, View v) {
+        super(context);
 
         view = v;
-        context = ctx;
         activity = (MainActivity) context;
 
         connection_state = view.findViewById(R.id.connection_state);
@@ -153,6 +152,17 @@ public class MainView extends View {
             public void run() {
                 Log.d("STOP_TAG", "onBatteryRead");
                 battery_level.setText("Battery: " + level + "%");
+            }
+        }));
+    }
+
+    public void onLabelAdded(final String label) {
+        activity.runOnUiThread((new Runnable() {
+            @Override
+            public void run() {
+                Log.d("STOP_TAG", "onLabelAdded");
+                String str = label + " label added";
+                Toast.makeText(activity, str, Toast.LENGTH_SHORT).show();
             }
         }));
     }
