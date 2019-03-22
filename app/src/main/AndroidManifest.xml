@@ -61,6 +61,13 @@
                 android:name="android.content.SyncAdapter"
                 android:resource="@xml/sync_stop_myo" />
         </service>
+
+
+        <service
+            android:name="com.aware.app.stop_myo.model.MyoHandler"
+            android:exported="true"
+            android:label="STOP: Myo Service" />
+
     </application>
 
 </manifest>

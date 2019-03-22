@@ -10,7 +10,7 @@
     tools:context=".presenter.MainActivity">
 
     <TextView
-        android:id="@+id/connection_state"
+        android:id="@+id/tv_connection_state"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
@@ -19,7 +19,7 @@
         android:text="CONNECTION STATE"/>
 
     <LinearLayout
-        android:id="@+id/onDisconnected_layout"
+        android:id="@+id/layout_on_disconnected"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -66,7 +66,7 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/onConnected_layout"
+        android:id="@+id/layout_on_connected"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -74,7 +74,7 @@
         android:visibility="invisible">
 
         <TextView
-            android:id="@+id/device_name"
+            android:id="@+id/tv_device_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -82,7 +82,7 @@
             android:text="Device name: "/>
 
         <TextView
-            android:id="@+id/mac_address"
+            android:id="@+id/tv_mac_address"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -90,7 +90,7 @@
             android:text="MAC: "/>
 
         <TextView
-            android:id="@+id/battery_level"
+            android:id="@+id/tv_battery_level"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -161,7 +161,7 @@
     </LinearLayout>
 
     <ProgressBar
-        android:id="@+id/connecting_progress"
+        android:id="@+id/progress_bar_connecting"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_centerInParent="true"

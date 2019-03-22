@@ -1,17 +1,17 @@
 package com.aware.app.stop_myo.model;
 
+import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
-import android.view.View;
 
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
-import com.aware.app.stop_myo.views.MainView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -19,6 +19,7 @@ import org.json.JSONObject;
 
 import java.util.List;
 
+import androidx.annotation.Nullable;
 import eu.darken.myolib.BaseMyo;
 import eu.darken.myolib.Myo;
 import eu.darken.myolib.MyoCmds;
@@ -29,7 +30,7 @@ import eu.darken.myolib.processor.emg.EmgProcessor;
 import eu.darken.myolib.processor.imu.ImuData;
 import eu.darken.myolib.processor.imu.ImuProcessor;
 
-public class MyoHandler implements
+public class MyoHandler extends Service implements
         MyoConnector.ScannerCallback,
         BaseMyo.ConnectionListener,
         Myo.ReadDeviceNameCallback,
@@ -37,38 +38,33 @@ public class MyoHandler implements
         EmgProcessor.EmgDataListener,
         ImuProcessor.ImuDataListener {
 
-    public MyoHandler(Context context, View view) {
-        this.context = context;
-        mainView = new MainView(context, view);
-        mainView.onDisconnected();
+    private Context context;
+
+    public MyoHandler() {
     }
 
-    private Context context;
-    private MainView mainView;
+    public MyoHandler(Context context) {
+        this.context = context;
+    }
 
     // Myo variables
-    private MyoConnector connector = null;
-    private Myo myo = null;
-    private EmgProcessor emgProcessor = null;
-    private ImuProcessor imuProcessor = null;
-    private boolean connected = false;
+    private Myo myo;
+    private MyoConnector connector;
+    private EmgProcessor emgProcessor;
+    private ImuProcessor imuProcessor;
+    private boolean connected;
 
     // Bluetooth variables for MAC connection
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothDevice bt;
 
     // JSON objects variables
-    private JSONObject myoDataObject = new JSONObject();
-    private JSONArray accArray = new JSONArray();
-    private JSONArray gyroArray = new JSONArray();
-    private JSONArray orientArray = new JSONArray();
-    private JSONArray emgArray = new JSONArray();
-    private JSONArray batteryArray = new JSONArray();
-    private JSONArray labelsArray = new JSONArray();
-    private long first_insert = 0;
+    private JSONObject myoDataObject;
+    private JSONArray accArray, gyroArray, orientArray, emgArray, batteryArray, labelsArray;
+    private long first_insert;
 
     // Sampling frequency and connection variables
-    private static final int SAMPLING_BUFFER_SIZE = 600;                  // maximum buffer size
+    private static final int SAMPLING_BUFFER_SIZE = 600;                  // maximum buffer size (e.g. 600 for 5 mins of sampling)
     private static final int SAMPLING_IMU_FREQUENCY = 500;                // in milliseconds (e.g. once per 500 ms)
     private static final int SAMPLING_EMG_FREQUENCY = 500;                // in milliseconds (e.g. once per 500 ms)
     private static final int SAMPLING_BATTERY_LVL_READ_FREQUENCY = 60000; // in milliseconds (e.g. once per 60 sec)
@@ -103,9 +99,80 @@ public class MyoHandler implements
     private static final String SAMPLE_KEY_EMG_6 = "emg6";
     private static final String SAMPLE_KEY_EMG_7 = "emg7";
 
+    // Broadcast receiver flags
+    public static final String MYO_INTENT = "MYO_INTENT";
+    public static final String MYO_CONNECTION_STATE = "MYO_CONNECTION_STATE";
+    public static final String MYO_LABEL = "MYO_LABEL";
+    public static final String MYO_PROPERTIES_MAC = "MYO_PROPERTIES_MAC";
+    public static final String MYO_PROPERTIES_NAME = "MYO_PROPERTIES_NAME";
+    public static final String MYO_BATTERY = "MYO_BATTERY";
+    public final static String STATE_SCANNING = "STATE_SCANNING";
+    public final static String STATE_CONNECTING = "STATE_CONNECTING";
+    public final static String STATE_CONNECTED = "STATE_CONNECTED";
+    public final static String STATE_DISCONNECTED = "STATE_DISCONNECTED";
+    public final static String STATE_MAC_WRONG = "STATE_MAC_WRONG";
+    public final static String STATE_CONNECTION_TIMEOUT = "STATE_CONNECTION_TIMEOUT";
+    public final static String STATE_EMPTY_AUTOSCAN = "STATE_EMPTY_AUTOSCAN";
+    public final static String STATE_PROPERTIES_READ = "STATE_PROPERTIES_READ";
+    public final static String STATE_BATTERY_READ = "STATE_BATTERY_READ";
+    public final static String STATE_LABEL_ADDED = "STATE_LABEL_ADDED";
+
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        connector = null;
+        myo = null;
+        emgProcessor = null;
+        imuProcessor = null;
+        connected = false;
+
+        // TODO:
+//        myoDataObject = new JSONObject();
+//        accArray = new JSONArray();
+//        gyroArray = new JSONArray();
+//        orientArray = new JSONArray();
+//        emgArray = new JSONArray();
+//        batteryArray = new JSONArray();
+//        labelsArray = new JSONArray();
+//        first_insert = 0;
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        // Insert existing data on disconnect if smth not inserted exists
+        if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || labelsArray.length()!=0) {
+            insertData();
+        }
+
+        // Remove all the exisitng values
+        removeValues();
+        myoDataObject = null;
+        accArray = null;
+        gyroArray = null;
+        orientArray = null;
+        emgArray = null;
+        batteryArray = null;
+        labelsArray = null;
+    }
 
     // Connecting to Myo via autoscanning
     public void connectMyo() {
+
         if (bluetoothAdapter == null) bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
             // Request to activate bluetooth
@@ -115,7 +182,9 @@ public class MyoHandler implements
 
         } else {
             // Update UI: Scanning
-            mainView.onScanning();
+            Intent scanning = new Intent(MYO_INTENT);
+            scanning.putExtra(MYO_CONNECTION_STATE, STATE_SCANNING);
+            context.sendBroadcast(scanning);
 
             // Try to connect with autoscanning
             // Callback either connects to found myo or offers to try again
@@ -135,7 +204,9 @@ public class MyoHandler implements
 
         } else {
             // Update UI: Connecting
-            mainView.onConnecting();
+            Intent connecting = new Intent(MYO_INTENT);
+            connecting.putExtra(MYO_CONNECTION_STATE, STATE_CONNECTING);
+            context.sendBroadcast(connecting);
 
             try {
                 // Initialize bluetooth device with retrieved MAC address
@@ -152,7 +223,9 @@ public class MyoHandler implements
                     public void run() {
                         if (myo!=null && !connected) {
                             // UI Update: Connection timeout
-                            mainView.onConnectionTimeout();
+                            Intent connection_timeout = new Intent(MYO_INTENT);
+                            connection_timeout.putExtra(MYO_CONNECTION_STATE, STATE_CONNECTION_TIMEOUT);
+                            context.sendBroadcast(connection_timeout);
 
                             //Removing existing values
                             removeValues();
@@ -163,7 +236,9 @@ public class MyoHandler implements
 
             } catch (IllegalArgumentException e) {
                 // Update UI: Wrong MAC address format
-                mainView.onMacWrong();
+                Intent mac_wrong = new Intent(MYO_INTENT);
+                mac_wrong.putExtra(MYO_CONNECTION_STATE, STATE_MAC_WRONG);
+                context.sendBroadcast(mac_wrong);
 
                 //Removing existing values
                 removeValues();
@@ -187,22 +262,31 @@ public class MyoHandler implements
                     removeValues();
 
                     // Update UI: Disconnected
-                    mainView.onDisconnected();
+                    Intent disconnected = new Intent(MYO_INTENT);
+                    disconnected.putExtra(MYO_CONNECTION_STATE, STATE_DISCONNECTED);
+                    context.sendBroadcast(disconnected);
 
                     // Insert existing data on disconnect if smth not inserted exists
                     if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || labelsArray.length()!=0) {
-                        // Insert data to db; Handler for getting access to AWARE from the Myo callback
-                        Handler handler = new Handler(Looper.getMainLooper());
-                        Runnable r = new Runnable() {
-                            public void run() {
-                                insertData();
-                            }
-                        };
-                        handler.postDelayed(r, 0);
+                        insertData();
                     }
                 }
             });
         }
+    }
+
+    // Sends the broadcast to UI about the current connection state
+    public void getConnectionState() {
+        BaseMyo.ConnectionState state;
+        if (myo != null) {
+            state = myo.getConnectionState();
+        } else {
+            state = BaseMyo.ConnectionState.DISCONNECTED;
+        }
+
+        Intent connection_state = new Intent(MYO_INTENT);
+        connection_state.putExtra(MYO_CONNECTION_STATE, state);
+        context.sendBroadcast(connection_state);
     }
 
     // Record label during sampling
@@ -216,7 +300,10 @@ public class MyoHandler implements
             labelObj = null;
 
             // Update UI: Label recorded
-            mainView.onLabelAdded(label);
+            Intent label_added = new Intent(MYO_INTENT);
+            label_added.putExtra(MYO_CONNECTION_STATE, STATE_LABEL_ADDED);
+            label_added.putExtra(MYO_LABEL, label);
+            context.sendBroadcast(label_added);
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -224,52 +311,60 @@ public class MyoHandler implements
     }
 
     // Insert data to db once the EMG array length equals to variable SAMPLE_BUFFER_SIZE
+    // or when the disconnect is called
     private synchronized void insertData() {
-        try {
+        // Handler for getting access to AWARE from the separate threads
+        Handler handler = new Handler(Looper.getMainLooper());
+        Runnable r = new Runnable() {
+            public void run() {
+                try {
             /*
              With the battery-friendly purpose, the buffer size is set for 600 by default (5 mins of sampling).
              Every 5 mins the data is recorded to db. If the record is the continuation of sampling (2nd entry, etc.),
              it will have the JSON Object "extension_of" that refers to very first session entry.
              */
-            ContentValues values = new ContentValues();
-            if (first_insert == 0) {
-                first_insert = System.currentTimeMillis();
-                values.put(Provider.Myo_Data.TIMESTAMP, first_insert);
-            } else {
-                values.put(Provider.Myo_Data.TIMESTAMP, System.currentTimeMillis());
-                myoDataObject.put(SAMPLE_KEY_EXTENSION_OF, first_insert);
+                    ContentValues values = new ContentValues();
+                    if (first_insert == 0) {
+                        first_insert = System.currentTimeMillis();
+                        values.put(Provider.Myo_Data.TIMESTAMP, first_insert);
+                    } else {
+                        values.put(Provider.Myo_Data.TIMESTAMP, System.currentTimeMillis());
+                        myoDataObject.put(SAMPLE_KEY_EXTENSION_OF, first_insert);
+                    }
+
+                    // JSON: Building a result object
+                    myoDataObject.put(SAMPLE_KEY_BATTERY, batteryArray);
+
+                    JSONObject imuObject = new JSONObject();
+                    imuObject.put(SAMPLE_KEY_ACCELEROMETER, accArray);
+                    imuObject.put(SAMPLE_KEY_GYROSCOPE, gyroArray);
+                    imuObject.put(SAMPLE_KEY_ORIENTATION, orientArray);
+
+                    final JSONObject result = new JSONObject();
+                    result.put(SAMPLE_KEY_MYO_DATA, myoDataObject);
+                    result.put(SAMPLE_KEY_LABELS, labelsArray);
+                    result.put(SAMPLE_KEY_IMU, imuObject);
+                    result.put(SAMPLE_KEY_EMG, emgArray);
+
+                    // JSON: Inserting result object to db
+                    values.put(Provider.Myo_Data.DEVICE_ID, Aware.getSetting(context, Aware_Preferences.DEVICE_ID));
+                    values.put(Provider.Myo_Data.DATA, result.toString());
+                    context.getContentResolver().insert(Provider.Myo_Data.CONTENT_URI, values);
+
+                    // Empty sampling arrays for further data collection
+                    accArray = new JSONArray();
+                    gyroArray = new JSONArray();
+                    orientArray = new JSONArray();
+                    emgArray = new JSONArray();
+                    batteryArray = new JSONArray();
+                    labelsArray = new JSONArray();
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
-
-            // JSON: Building a result object
-            myoDataObject.put(SAMPLE_KEY_BATTERY, batteryArray);
-
-            JSONObject imuObject = new JSONObject();
-            imuObject.put(SAMPLE_KEY_ACCELEROMETER, accArray);
-            imuObject.put(SAMPLE_KEY_GYROSCOPE, gyroArray);
-            imuObject.put(SAMPLE_KEY_ORIENTATION, orientArray);
-
-            final JSONObject result = new JSONObject();
-            result.put(SAMPLE_KEY_MYO_DATA, myoDataObject);
-            result.put(SAMPLE_KEY_LABELS, labelsArray);
-            result.put(SAMPLE_KEY_IMU, imuObject);
-            result.put(SAMPLE_KEY_EMG, emgArray);
-
-            // JSON: Inserting result object to db
-            values.put(Provider.Myo_Data.DEVICE_ID, Aware.getSetting(context, Aware_Preferences.DEVICE_ID));
-            values.put(Provider.Myo_Data.DATA, result.toString());
-            context.getContentResolver().insert(Provider.Myo_Data.CONTENT_URI, values);
-
-            // Empty sampling arrays for further data collection
-            accArray = new JSONArray();
-            gyroArray = new JSONArray();
-            orientArray = new JSONArray();
-            emgArray = new JSONArray();
-            batteryArray = new JSONArray();
-            labelsArray = new JSONArray();
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        };
+        handler.postDelayed(r, 0);
     }
 
     // Removing values when Myo is detached
@@ -303,11 +398,15 @@ public class MyoHandler implements
             removeValues();
 
             // Update UI: No Myos found on autoscanning
-            mainView.onEmptyAutoscan();
+            Intent empty_autoscan = new Intent(MYO_INTENT);
+            empty_autoscan.putExtra(MYO_CONNECTION_STATE, STATE_EMPTY_AUTOSCAN);
+            context.sendBroadcast(empty_autoscan);
 
         } else {
             // Update UI: Connecting
-            mainView.onConnecting();
+            Intent connecting = new Intent(MYO_INTENT);
+            connecting.putExtra(MYO_CONNECTION_STATE, STATE_CONNECTING);
+            context.sendBroadcast(connecting);
 
             // Connect to found Myo
             myo = myos.get(0);
@@ -320,7 +419,9 @@ public class MyoHandler implements
                 public void run() {
                     if (myo!=null && !connected) {
                         // Update UI: Connection timetout
-                        mainView.onConnectionTimeout();
+                        Intent connection_timeout = new Intent(MYO_INTENT);
+                        connection_timeout.putExtra(MYO_CONNECTION_STATE, STATE_CONNECTION_TIMEOUT);
+                        context.sendBroadcast(connection_timeout);
 
                         //Removing existing values
                         removeValues();
@@ -362,6 +463,20 @@ public class MyoHandler implements
                 @Override
                 public void onCommandDone(Myo mMyo, MyoMsg msg) {
                     connected = true;
+                    // Update UI: Connected
+                    Intent connected = new Intent(MYO_INTENT);
+                    connected.putExtra(MYO_CONNECTION_STATE, STATE_CONNECTED);
+                    context.sendBroadcast(connected);
+
+                    // TODO:
+                    myoDataObject = new JSONObject();
+                    accArray = new JSONArray();
+                    gyroArray = new JSONArray();
+                    orientArray = new JSONArray();
+                    emgArray = new JSONArray();
+                    batteryArray = new JSONArray();
+                    labelsArray = new JSONArray();
+                    first_insert = 0;
 
                     // Setting up Imu and EMG sensors
                     imuProcessor = new ImuProcessor();
@@ -370,9 +485,6 @@ public class MyoHandler implements
                     emgProcessor.addListener(MyoHandler.this);
                     myo.addProcessor(imuProcessor);
                     myo.addProcessor(emgProcessor);
-
-                    // Update UI: Connected
-                    mainView.onConnected();
 
                     // Read device name on connect and record it to JSON object
                     myo.readDeviceName(MyoHandler.this);
@@ -385,7 +497,9 @@ public class MyoHandler implements
             removeValues();
 
             // Update UI: Disconnected
-            mainView.onDisconnected();
+            Intent disconnected = new Intent(MYO_INTENT);
+            disconnected.putExtra(MYO_CONNECTION_STATE, STATE_DISCONNECTED);
+            context.sendBroadcast(disconnected);
 
             // Insert existing data on disconnect if smth not inserted exists
             if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || labelsArray.length()!=0) {
@@ -399,12 +513,16 @@ public class MyoHandler implements
     @Override
     public void onDeviceNameRead(Myo myo, MyoMsg msg, String deviceName) {
         // Update UI: Device name and mac properties read
-        mainView.onPropertiesRead(deviceName, myo.getDeviceAddress());
+        Intent properties_read = new Intent(MYO_INTENT);
+        properties_read.putExtra(MYO_CONNECTION_STATE, STATE_PROPERTIES_READ);
+        properties_read.putExtra(MYO_PROPERTIES_NAME, deviceName);
+        properties_read.putExtra(MYO_PROPERTIES_MAC, myo.getDeviceAddress());
+        context.sendBroadcast(properties_read);
 
         // JSON: record device properties
         try {
             myoDataObject.put(SAMPLE_KEY_DEVICE_NAME, deviceName);
-            myoDataObject.put(SAMPLE_KEY_MAC_ADDRESS, myo.getDeviceAddress());;
+            myoDataObject.put(SAMPLE_KEY_MAC_ADDRESS, myo.getDeviceAddress());
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -414,7 +532,10 @@ public class MyoHandler implements
     @Override
     public void onBatteryLevelRead(Myo myo, MyoMsg msg, int batteryLevel) {
         // Update UI: Battery level read
-        mainView.onBatteryRead(batteryLevel);
+        Intent battery_read = new Intent(MYO_INTENT);
+        battery_read.putExtra(MYO_CONNECTION_STATE, STATE_BATTERY_READ);
+        battery_read.putExtra(MYO_BATTERY, batteryLevel);
+        context.sendBroadcast(battery_read);
 
         // JSON: record battery level
         try {
@@ -455,7 +576,7 @@ public class MyoHandler implements
                 if (emgArray.length() == SAMPLING_BUFFER_SIZE) insertData();
 
             } catch (JSONException e) {
-                e.printStackTrace();;
+                e.printStackTrace();
             }
         }
     }

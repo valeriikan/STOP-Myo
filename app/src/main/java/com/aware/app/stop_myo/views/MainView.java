@@ -2,51 +2,110 @@ package com.aware.app.stop_myo.views;
 
 import android.content.Context;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aware.app.stop_myo.R;
+import com.aware.app.stop_myo.model.MyoHandler;
 import com.aware.app.stop_myo.presenter.MainActivity;
+
 
 public class MainView extends View {
 
-    View view;
     MainActivity activity;
 
-    TextView connection_state;
-    LinearLayout onDisconnected_layout;
-    LinearLayout onConnected_layout;
-    ProgressBar connecting_progress;
-    TextView device_name, mac_address, battery_level;
+    LinearLayout layout_on_disconnected, layout_on_connected;
+    ProgressBar progress_bar_connecting;
+    TextView tv_connection_state, tv_device_name, tv_mac_address, tv_battery_level;
+    EditText et_mac, et_custom_label;
+    Button btn_autoconnect, btn_connect_mac, btn_disconnect, btn_start_label, btn_end_label, btn_custom_label;
 
-    public MainView(Context context, View v) {
+    public MainView(Context context, final MyoHandler myoHandler) {
         super(context);
 
-        view = v;
         activity = (MainActivity) context;
+        View view = LayoutInflater.from(activity).inflate(R.layout.activity_main, null);
+        activity.setContentView(view);
 
-        connection_state = view.findViewById(R.id.connection_state);
-        onDisconnected_layout = view.findViewById(R.id.onDisconnected_layout);
-        onConnected_layout = view.findViewById(R.id.onConnected_layout);
-        connecting_progress = view.findViewById(R.id.connecting_progress);
-        device_name = view.findViewById(R.id.device_name);
-        mac_address = view.findViewById(R.id.mac_address);
-        battery_level = view.findViewById(R.id.battery_level);
+        // Initializing views
+        layout_on_disconnected = view.findViewById(R.id.layout_on_disconnected);
+        layout_on_connected = view.findViewById(R.id.layout_on_connected);
+        tv_connection_state = view.findViewById(R.id.tv_connection_state);
+        tv_device_name = view.findViewById(R.id.tv_device_name);
+        tv_mac_address = view.findViewById(R.id.tv_mac_address);
+        tv_battery_level = view.findViewById(R.id.tv_battery_level);
+        progress_bar_connecting = view.findViewById(R.id.progress_bar_connecting);
+        et_mac = view.findViewById(R.id.et_mac);
+        et_custom_label = view.findViewById(R.id.et_custom_label);
+        btn_autoconnect = view.findViewById(R.id.btn_autoconnect);
+        btn_connect_mac = view.findViewById(R.id.btn_connect_mac);
+        btn_disconnect = view.findViewById(R.id.btn_disconnect);
+        btn_start_label = view.findViewById(R.id.btn_start_label);
+        btn_end_label = view.findViewById(R.id.btn_end_label);
+        btn_custom_label = view.findViewById(R.id.btn_custom_label);
+
+        btn_autoconnect.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.connectMyo();
+            }
+        });
+
+        btn_connect_mac.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.connectMacMyo(et_mac.getText().toString());
+            }
+        });
+
+        btn_disconnect.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.disconnectMyo();
+            }
+        });
+
+        btn_start_label.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(MyoHandler.SAMPLE_KEY_LABEL_START);
+
+            }
+        });
+
+        btn_end_label.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(MyoHandler.SAMPLE_KEY_LABEL_END);
+            }
+        });
+
+        btn_custom_label.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                myoHandler.addLabel(et_custom_label.getText().toString());
+            }
+        });
     }
 
+
+    // Methods to update UI based on Myo connection state
     public void onScanning() {
         activity.runOnUiThread((new Runnable() {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onScanning");
-                connection_state.setText("SCANNING FOR MYO");
+                tv_connection_state.setText("SCANNING FOR MYO");
 
-                connecting_progress.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                onDisconnected_layout.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(GONE);
             }
         }));
     }
@@ -56,11 +115,11 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onConnecting");
-                connection_state.setText("CONNECTING TO MYO");
+                tv_connection_state.setText("CONNECTING TO MYO");
 
-                connecting_progress.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                onDisconnected_layout.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(GONE);
             }
         }));
     }
@@ -70,11 +129,25 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onConnected");
-                connection_state.setText("CONNECTED TO MYO");
+                tv_connection_state.setText("CONNECTED TO MYO");
 
-                onConnected_layout.setVisibility(VISIBLE);
-                onDisconnected_layout.setVisibility(GONE);
-                connecting_progress.setVisibility(GONE);
+                layout_on_connected.setVisibility(VISIBLE);
+                layout_on_disconnected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
+            }
+        }));
+    }
+
+    public void onDisconnecting() {
+        activity.runOnUiThread((new Runnable() {
+            @Override
+            public void run() {
+                Log.d("STOP_TAG", "onDisconnecting");
+                tv_connection_state.setText("DISCONNECTING FROM MYO");
+
+                progress_bar_connecting.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(GONE);
             }
         }));
     }
@@ -84,11 +157,11 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onDisconnected");
-                connection_state.setText("DISCONNECTED FROM MYO");
+                tv_connection_state.setText("DISCONNECTED FROM MYO");
 
-                onDisconnected_layout.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                connecting_progress.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
             }
         }));
     }
@@ -98,11 +171,11 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onMacWrong");
-                connection_state.setText("WRONG MAC FORMAT\nPLEASE TRY AGAIN");
+                tv_connection_state.setText("WRONG MAC FORMAT\nPLEASE TRY AGAIN");
 
-                onDisconnected_layout.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                connecting_progress.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
             }
         }));
     }
@@ -112,11 +185,11 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onConnectionTimeout");
-                connection_state.setText("CONNECTION ERROR\nPLEASE TRY AGAIN");
+                tv_connection_state.setText("CONNECTION ERROR\nPLEASE TRY AGAIN");
 
-                onDisconnected_layout.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                connecting_progress.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
             }
         }));
     }
@@ -126,11 +199,11 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onEmptyAutoscan");
-                connection_state.setText("NO MYOS HAVE BEEN FOUND\nPLEASE TRY AGAIN");
+                tv_connection_state.setText("NO MYOS HAVE BEEN FOUND\nPLEASE TRY AGAIN");
 
-                onDisconnected_layout.setVisibility(VISIBLE);
-                onConnected_layout.setVisibility(GONE);
-                connecting_progress.setVisibility(GONE);
+                layout_on_disconnected.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
             }
         }));
     }
@@ -140,8 +213,8 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onPropertiesRead");
-                device_name.setText("Device name: " + name);
-                mac_address.setText("MAC: " + mac);
+                tv_device_name.setText("Device name: " + name);
+                tv_mac_address.setText("MAC: " + mac);
             }
         }));
     }
@@ -151,7 +224,7 @@ public class MainView extends View {
             @Override
             public void run() {
                 Log.d("STOP_TAG", "onBatteryRead");
-                battery_level.setText("Battery: " + level + "%");
+                tv_battery_level.setText("Battery: " + level + "%");
             }
         }));
     }
