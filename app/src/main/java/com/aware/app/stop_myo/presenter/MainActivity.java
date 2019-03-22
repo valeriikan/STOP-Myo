@@ -75,6 +75,9 @@ public class MainActivity extends AppCompatActivity {
                     .equals(MyoHandler.STATE_DISCONNECTED)) mainView.onDisconnected();
 
             if (intent.getExtras().get(MyoHandler.MYO_CONNECTION_STATE)
+                    .equals(MyoHandler.STATE_SLEEP_MODE)) mainView.onSleepMode();
+
+            if (intent.getExtras().get(MyoHandler.MYO_CONNECTION_STATE)
                     .equals(MyoHandler.STATE_MAC_WRONG)) mainView.onMacWrong();
 
             if (intent.getExtras().get(MyoHandler.MYO_CONNECTION_STATE)

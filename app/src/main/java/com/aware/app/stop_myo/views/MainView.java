@@ -92,6 +92,14 @@ public class MainView extends View {
                 myoHandler.addLabel(et_custom_label.getText().toString());
             }
         });
+
+        tv_battery_level.setOnLongClickListener(new OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                myoHandler.goSleepMode();
+                return true;
+            }
+        });
     }
 
 
@@ -158,6 +166,20 @@ public class MainView extends View {
             public void run() {
                 Log.d("STOP_TAG", "onDisconnected");
                 tv_connection_state.setText("DISCONNECTED FROM MYO");
+
+                layout_on_disconnected.setVisibility(VISIBLE);
+                layout_on_connected.setVisibility(GONE);
+                progress_bar_connecting.setVisibility(GONE);
+            }
+        }));
+    }
+
+    public void onSleepMode() {
+        activity.runOnUiThread((new Runnable() {
+            @Override
+            public void run() {
+                Log.d("STOP_TAG", "onDisconnecting");
+                tv_connection_state.setText("SLEEP MODE ACTIVATE\nDISCONNECTED FROM MYO");
 
                 layout_on_disconnected.setVisibility(VISIBLE);
                 layout_on_connected.setVisibility(GONE);

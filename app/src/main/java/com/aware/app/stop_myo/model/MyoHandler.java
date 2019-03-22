@@ -110,6 +110,7 @@ public class MyoHandler extends Service implements
     public final static String STATE_CONNECTING = "STATE_CONNECTING";
     public final static String STATE_CONNECTED = "STATE_CONNECTED";
     public final static String STATE_DISCONNECTED = "STATE_DISCONNECTED";
+    public final static String STATE_SLEEP_MODE = "STATE_SLEEP_MODE";
     public final static String STATE_MAC_WRONG = "STATE_MAC_WRONG";
     public final static String STATE_CONNECTION_TIMEOUT = "STATE_CONNECTION_TIMEOUT";
     public final static String STATE_EMPTY_AUTOSCAN = "STATE_EMPTY_AUTOSCAN";
@@ -159,7 +160,7 @@ public class MyoHandler extends Service implements
             insertData();
         }
 
-        // Remove all the exisitng values
+        // Remove all the existing values
         removeValues();
         myoDataObject = null;
         accArray = null;
@@ -287,6 +288,26 @@ public class MyoHandler extends Service implements
         Intent connection_state = new Intent(MYO_INTENT);
         connection_state.putExtra(MYO_CONNECTION_STATE, state);
         context.sendBroadcast(connection_state);
+    }
+
+    // Sets Myo to deep sleep mode and disconnects
+    public void goSleepMode() {
+        if (myo != null) {
+            myo.writeDeepSleep(null);
+
+            // Removing existing values
+            removeValues();
+
+            // Update UI: Disconnected
+            Intent sleep_mode = new Intent(MYO_INTENT);
+            sleep_mode.putExtra(MYO_CONNECTION_STATE, STATE_SLEEP_MODE);
+            context.sendBroadcast(sleep_mode);
+
+            // Insert existing data on disconnect if smth not inserted exists
+            if (accArray.length()!=0 || gyroArray.length()!=0 || orientArray.length()!=0 || emgArray.length()!=0 || labelsArray.length()!=0) {
+                insertData();
+            }
+        }
     }
 
     // Record label during sampling
